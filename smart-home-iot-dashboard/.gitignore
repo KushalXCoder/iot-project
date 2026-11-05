@@ -1,2 +1,30 @@
-node_modules
-.next
+# Node.js
+node_modules/
+.next/
+out/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.local.example
+backend/.env
+backend/.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+
+# Local database and biometric data
+backend/haven.db
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
+
+# Generated files
+.DS_Store
+Thumbs.db
+*.log
