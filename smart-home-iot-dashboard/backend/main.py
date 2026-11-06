@@ -34,16 +34,19 @@ from face_engine import (
 )
 
 
+
+
 # --------------------------------------------------
 # Configuration
 # --------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
 
-ESP32_STREAM_URL = os.getenv(
-    "ESP32_STREAM_URL",
-    "http://10.252.199.89:81/stream"
+# All ESP32 addresses and ports are loaded centrally from backend/.env.
+# Do not add hardware IP addresses or fallback URLs in this file.
+from config import (
+    ESP32_CAMERA_STREAM_URL,
+    RECOGNITION_THRESHOLD,
 )
 
 MODEL_PATH = (
@@ -52,16 +55,13 @@ MODEL_PATH = (
     / "face_detection_yunet_2023mar.onnx"
 )
 
+# config.py loads backend/.env before this import.
+from audio import router as audio_router
+
 SCORE_THRESHOLD = 0.65
 NMS_THRESHOLD = 0.30
 TOP_K = 5000
 MAX_FRAME_WIDTH = 640
-
-# Initial cosine similarity threshold.
-# Calibrate this with real camera images before relying on it.
-RECOGNITION_THRESHOLD = float(
-    os.getenv("RECOGNITION_THRESHOLD", "0.40")
-)
 
 # Refresh the in-memory face gallery periodically so additions
 # and deletions from the People page are reflected.
@@ -77,6 +77,7 @@ _gallery_last_loaded = 0.0
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("haven")
+logger.info("Configured ESP32 camera stream: %s", ESP32_CAMERA_STREAM_URL)
 
 
 # --------------------------------------------------
@@ -87,6 +88,7 @@ app = FastAPI(
     title="Haven Face Recognition API",
     version="1.1.0"
 )
+app.include_router(audio_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -295,11 +297,11 @@ def read_esp32_frames() -> Generator[np.ndarray, None, None]:
         try:
             logger.info(
                 "Connecting to ESP32 stream: %s",
-                ESP32_STREAM_URL
+                ESP32_CAMERA_STREAM_URL
             )
 
             with requests.get(
-                ESP32_STREAM_URL,
+                ESP32_CAMERA_STREAM_URL,
                 stream=True,
                 timeout=(5, 20)
             ) as response:
@@ -539,6 +541,30 @@ def health():
         "detector_loaded": detector is not None,
         "recognizer_loaded": True,
         "recognition_threshold": RECOGNITION_THRESHOLD
+    }
+
+
+@app.get("/config/status")
+def config_status():
+    """Show configured device addresses for local diagnostics."""
+    from config import (
+        ESP32_CAMERA_IP,
+        ESP32_CAMERA_PORT,
+        ESP32_CAMERA_STREAM_URL,
+        ESP32_AUDIO_IP,
+        ESP32_AUDIO_PORT,
+    )
+
+    return {
+        "camera": {
+            "ip": ESP32_CAMERA_IP,
+            "port": ESP32_CAMERA_PORT,
+            "stream_url": ESP32_CAMERA_STREAM_URL,
+        },
+        "audio": {
+            "ip": ESP32_AUDIO_IP,
+            "port": ESP32_AUDIO_PORT,
+        },
     }
 
 

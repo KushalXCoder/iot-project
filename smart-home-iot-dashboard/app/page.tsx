@@ -9,9 +9,10 @@ import {
   Volume2, VolumeX, Wifi, X, Zap
 } from "lucide-react";
 import ESP32Camera from "../components/ESP32Camera";
+import AudioPlayer from "../components/AudioPlayer";
 
 type Device = { id: number; name: string; room: string; type: string; status: "Connected" | "Disconnected" | "Offline"; detail: string; icon: "camera" | "speaker" | "lock" | "light" | "ac" | "fan" };
-type View = "Overview" | "Devices" | "People" | "Security";
+type View = "Overview" | "Devices" | "People" | "Security" | "Audio";
 
 const initialDevices: Device[] = [
   { id: 1, name: "Entrance Camera", room: "Living Room", type: "Camera", status: "Connected", detail: "Live monitoring", icon: "camera" },
@@ -73,7 +74,7 @@ export default function Page() {
     setDevices(current => [...current, { id: Date.now(), name: newDevice.name.trim(), room: newDevice.room, type: newDevice.type, status: "Connected", detail: "Ready", icon: newDevice.type === "Camera" ? "camera" : newDevice.type === "Audio" ? "speaker" : "light" }]);
     setNewDevice({ name: "", room: "Living Room", type: "Camera" }); setShowAdd(false); notify("Device added successfully");
   };
-  const nav = [{ label: "Overview", icon: LayoutDashboard }, { label: "Devices", icon: Smartphone }, { label: "People", icon: Users }, { label: "Security", icon: ShieldAlert }];
+  const nav = [{ label: "Overview", icon: LayoutDashboard }, { label: "Devices", icon: Smartphone }, { label: "People", icon: Users }, { label: "Security", icon: ShieldAlert }, { label: "Audio", icon: Speaker }];
   const openCamera = async () => {
     try { streamRef.current = await navigator.mediaDevices.getUserMedia({ video: true }); if (videoRef.current) videoRef.current.srcObject = streamRef.current; } catch { notify("Camera permission is needed to capture an intruder"); }
   };
@@ -85,6 +86,7 @@ export default function Page() {
       {view === "Devices" && <Devices devices={filtered} room={room} setRoom={setRoom} onToggle={toggleStatus} onAdd={() => setShowAdd(true)} />}
       {view === "People" && <People onNotify={notify} />}
       {view === "Security" && <Security />}
+      {view === "Audio" && <AudioPlayer />}
     </section>
     {showAdd && <div className="modal-backdrop" onMouseDown={() => setShowAdd(false)}><form className="modal" onSubmit={addDevice} onMouseDown={event => event.stopPropagation()}><button type="button" className="modal-close" onClick={() => setShowAdd(false)}><X size={18} /></button><div className="modal-icon"><Plus size={20} /></div><p className="eyebrow">DEVICE SETUP</p><h2>Add a new device</h2><p className="form-sub">Register hardware to monitor it from haven.</p><label>Device name<input autoFocus required value={newDevice.name} onChange={event => setNewDevice({ ...newDevice, name: event.target.value })} placeholder="e.g. Hallway sensor" /></label><div className="two-fields"><label>Room<select value={newDevice.room} onChange={event => setNewDevice({ ...newDevice, room: event.target.value })}>{rooms.slice(1).map(r => <option key={r}>{r}</option>)}</select></label><label>Type<select value={newDevice.type} onChange={event => setNewDevice({ ...newDevice, type: event.target.value })}><option>Camera</option><option>Audio</option><option>Lighting</option><option>Climate</option></select></label></div><button className="primary-button" type="submit">Add device <Check size={17} /></button></form></div>}
     {showWarning && <WarningModal videoRef={videoRef} captured={captured} onClose={() => { setShowWarning(false); streamRef.current?.getTracks().forEach(track => track.stop()); }} onStart={openCamera} onCapture={capture} />}
