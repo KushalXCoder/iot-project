@@ -8,6 +8,7 @@ import {
   ShieldAlert, ShieldCheck, Smartphone, Speaker, UserRound, Users, Video,
   Volume2, VolumeX, Wifi, X, Zap
 } from "lucide-react";
+import ESP32Camera from "../components/ESP32Camera";
 
 type Device = { id: number; name: string; room: string; type: string; status: "Connected" | "Disconnected" | "Offline"; detail: string; icon: "camera" | "speaker" | "lock" | "light" | "ac" | "fan" };
 type View = "Overview" | "Devices" | "People" | "Security";
@@ -19,11 +20,6 @@ const initialDevices: Device[] = [
   { id: 4, name: "Ceiling Light", room: "Bedroom", type: "Lighting", status: "Connected", detail: "Brightness · 70%", icon: "light" },
   { id: 5, name: "Air Conditioner", room: "Bedroom", type: "Climate", status: "Offline", detail: "Last seen 12 min ago", icon: "ac" },
   { id: 6, name: "Ventilation Fan", room: "Kitchen", type: "Appliance", status: "Disconnected", detail: "Needs attention", icon: "fan" }
-];
-const people = [
-  { name: "Kiran Rao", role: "Home owner", initials: "KR", color: "bg-[#f36b32]", lastSeen: "Today, 09:42 AM", confidence: "99.2%" },
-  { name: "Meera Rao", role: "Family member", initials: "MR", color: "bg-[#6b7df3]", lastSeen: "Today, 08:15 AM", confidence: "97.8%" },
-  { name: "Arjun Shah", role: "Guest", initials: "AS", color: "bg-[#2ab47d]", lastSeen: "Yesterday, 06:20 PM", confidence: "94.6%" }
 ];
 const rooms = ["All rooms", "Living Room", "Bedroom", "Kitchen", "Entrance"];
 
@@ -88,7 +84,7 @@ export default function Page() {
       {view === "Overview" && <Overview connected={connected} devices={devices} onNavigate={setView} onWarning={() => setShowWarning(true)} />}
       {view === "Devices" && <Devices devices={filtered} room={room} setRoom={setRoom} onToggle={toggleStatus} onAdd={() => setShowAdd(true)} />}
       {view === "People" && <People onNotify={notify} />}
-      {view === "Security" && <Security onWarning={() => setShowWarning(true)} captured={captured} />}
+      {view === "Security" && <Security />}
     </section>
     {showAdd && <div className="modal-backdrop" onMouseDown={() => setShowAdd(false)}><form className="modal" onSubmit={addDevice} onMouseDown={event => event.stopPropagation()}><button type="button" className="modal-close" onClick={() => setShowAdd(false)}><X size={18} /></button><div className="modal-icon"><Plus size={20} /></div><p className="eyebrow">DEVICE SETUP</p><h2>Add a new device</h2><p className="form-sub">Register hardware to monitor it from haven.</p><label>Device name<input autoFocus required value={newDevice.name} onChange={event => setNewDevice({ ...newDevice, name: event.target.value })} placeholder="e.g. Hallway sensor" /></label><div className="two-fields"><label>Room<select value={newDevice.room} onChange={event => setNewDevice({ ...newDevice, room: event.target.value })}>{rooms.slice(1).map(r => <option key={r}>{r}</option>)}</select></label><label>Type<select value={newDevice.type} onChange={event => setNewDevice({ ...newDevice, type: event.target.value })}><option>Camera</option><option>Audio</option><option>Lighting</option><option>Climate</option></select></label></div><button className="primary-button" type="submit">Add device <Check size={17} /></button></form></div>}
     {showWarning && <WarningModal videoRef={videoRef} captured={captured} onClose={() => { setShowWarning(false); streamRef.current?.getTracks().forEach(track => track.stop()); }} onStart={openCamera} onCapture={capture} />}
@@ -96,7 +92,7 @@ export default function Page() {
 }
 
 function Overview({ connected, devices, onNavigate, onWarning }: { connected: number; devices: Device[]; onNavigate: (view: View) => void; onWarning: () => void }) {
-  return <div className="page-body"><div className="hero-row"><div><p className="eyebrow">WEDNESDAY, NOVEMBER 4, 2026</p><h2>Your home at a glance</h2><p className="muted">Everything is calm and connected.</p></div><button className="warning-button" onClick={onWarning}><ShieldAlert size={17} /> Security alert</button></div><div className="stats-grid"><Stat icon={Smartphone} label="Total devices" value={devices.length} note="Across 4 rooms" /><Stat icon={Activity} label="Connected now" value={connected} note="Everything looks good" green /><Stat icon={AlertTriangle} label="Needs attention" value={devices.length - connected} note="Offline or disconnected" orange /><Stat icon={Users} label="Known people" value="3" note="Face profiles active" /></div><div className="overview-grid"><section className="panel device-panel"><div className="panel-heading"><div><h3>Device status</h3><p>Live connection overview</p></div><button className="link-button" onClick={() => onNavigate("Devices")}>View all <ArrowUpRight size={15} /></button></div><div className="status-list">{devices.slice(0, 5).map(device => <div className="status-row" key={device.id}><div className="device-mini"><span className="mini-icon"><DeviceIcon kind={device.icon} size={17} /></span><div><strong>{device.name}</strong><small>{device.room} · {device.type}</small></div></div><StatusPill status={device.status} /><ChevronRight size={16} className="row-arrow" /></div>)}</div></section><section className="panel security-card"><div className="security-illustration"><div className="ring ring-one" /><div className="ring ring-two" /><ShieldCheck size={33} /></div><p className="eyebrow">SECURITY CENTER</p><h3>Your home is protected</h3><p className="muted">Face recognition is active. No unusual activity detected.</p><button className="secondary-button" onClick={() => onNavigate("Security")}>Open security center <ArrowUpRight size={15} /></button></section></div><div className="lower-grid"><section className="panel activity-panel"><div className="panel-heading"><div><h3>Recent activity</h3><p>What happened around your home</p></div><Clock3 size={18} className="muted-icon" /></div><ActivityItem icon={LockKeyhole} title="Main entrance locked" detail="RFID card · Kiran Rao" time="09:42 AM" green /><ActivityItem icon={UserRound} title="Kiran recognized" detail="Entrance camera · 99.2% match" time="09:41 AM" green /><ActivityItem icon={Zap} title="Air conditioner went offline" detail="Bedroom · Last seen 12 min ago" time="09:30 AM" /></section><section className="panel quick-panel"><div className="panel-heading"><div><h3>Quick actions</h3><p>Common things, one tap away</p></div></div><div className="quick-actions"><button onClick={() => onNavigate("Devices")}><Plus size={18} /><span>Add device<small>Connect new hardware</small></span><ChevronRight size={15} /></button><button onClick={() => onNavigate("People")}><Users size={18} /><span>Manage profiles<small>Known people & recognition</small></span><ChevronRight size={15} /></button><button onClick={onWarning}><ShieldAlert size={18} /><span>Security alert<small>Capture an intruder snapshot</small></span><ChevronRight size={15} /></button></div></section></div></div>;
+  return <div className="page-body"><div className="hero-row"><div><p className="eyebrow">WEDNESDAY, NOVEMBER 4, 2026</p><h2>Your home at a glance</h2><p className="muted">Everything is calm and connected.</p></div><button className="warning-button" onClick={onWarning}><ShieldAlert size={17} /> Security alert</button></div><div className="stats-grid"><Stat icon={Smartphone} label="Total devices" value={devices.length} note="Across 4 rooms" /><Stat icon={Activity} label="Connected now" value={connected} note="Everything looks good" green /><Stat icon={AlertTriangle} label="Needs attention" value={devices.length - connected} note="Offline or disconnected" orange /><Stat icon={Users} label="Known people" value="Manage" note="Open People to view enrolled profiles" /></div><div className="overview-grid"><section className="panel device-panel"><div className="panel-heading"><div><h3>Device status</h3><p>Live connection overview</p></div><button className="link-button" onClick={() => onNavigate("Devices")}>View all <ArrowUpRight size={15} /></button></div><div className="status-list">{devices.slice(0, 5).map(device => <div className="status-row" key={device.id}><div className="device-mini"><span className="mini-icon"><DeviceIcon kind={device.icon} size={17} /></span><div><strong>{device.name}</strong><small>{device.room} · {device.type}</small></div></div><StatusPill status={device.status} /><ChevronRight size={16} className="row-arrow" /></div>)}</div></section><section className="panel security-card"><div className="security-illustration"><div className="ring ring-one" /><div className="ring ring-two" /><ShieldCheck size={33} /></div><p className="eyebrow">SECURITY CENTER</p><h3>Your home is protected</h3><p className="muted">Face detection is active. Identity matching will be enabled in the next stage.</p><button className="secondary-button" onClick={() => onNavigate("Security")}>Open security center <ArrowUpRight size={15} /></button></section></div><div className="lower-grid"><section className="panel activity-panel"><div className="panel-heading"><div><h3>Recent activity</h3><p>What happened around your home</p></div><Clock3 size={18} className="muted-icon" /></div><ActivityItem icon={LockKeyhole} title="Main entrance locked" detail="RFID card · Kiran Rao" time="09:42 AM" green /><ActivityItem icon={Zap} title="Air conditioner went offline" detail="Bedroom · Last seen 12 min ago" time="09:30 AM" /></section><section className="panel quick-panel"><div className="panel-heading"><div><h3>Quick actions</h3><p>Common things, one tap away</p></div></div><div className="quick-actions"><button onClick={() => onNavigate("Devices")}><Plus size={18} /><span>Add device<small>Connect new hardware</small></span><ChevronRight size={15} /></button><button onClick={() => onNavigate("People")}><Users size={18} /><span>Manage profiles<small>Known people & recognition</small></span><ChevronRight size={15} /></button><button onClick={onWarning}><ShieldAlert size={18} /><span>Security alert<small>Capture an intruder snapshot</small></span><ChevronRight size={15} /></button></div></section></div></div>;
 }
 
 function Stat({ icon: Icon, label, value, note, green, orange }: { icon: typeof Activity; label: string; value: string | number; note: string; green?: boolean; orange?: boolean }) {
@@ -110,14 +106,344 @@ function Devices({ devices, room, setRoom, onToggle, onAdd }: { devices: Device[
   return <div className="page-body"><div className="hero-row"><div><p className="eyebrow">HARDWARE MONITOR</p><h2>All devices</h2><p className="muted">Manage every connected device in your home.</p></div><button className="primary-small" onClick={onAdd}><Plus size={16} /> Add device</button></div><div className="filter-row">{rooms.map(r => <button key={r} className={room === r ? "selected" : ""} onClick={() => setRoom(r)}>{r}</button>)}</div><div className="device-grid">{devices.map(d => <article className="device-card" key={d.id}><div className="device-card-top"><div className="large-device-icon"><DeviceIcon kind={d.icon} size={27} /></div><StatusPill status={d.status} /></div><p className="device-type">{d.room} · {d.type}</p><h3>{d.name}</h3><p className="device-detail">{d.detail}</p><div className="device-card-bottom"><span><Wifi size={14} /> Last checked just now</span><button aria-label={`Toggle ${d.name}`} onClick={() => onToggle(d.id)} className={`toggle ${d.status === "Connected" ? "on" : ""}`}><i /></button></div></article>)}{devices.length === 0 && <div className="empty-state">No devices match this filter.</div>}</div></div>;
 }
 
+type EnrolledPerson = {
+  id: number;
+  name: string;
+  created_at: string;
+  sample_count: number;
+};
+
+const HAVEN_API_URL =
+  process.env.NEXT_PUBLIC_HAVEN_API_URL || "http://127.0.0.1:8000";
+
 function People({ onNotify }: { onNotify: (message: string) => void }) {
-  const [fileName, setFileName] = useState("");
-  return <div className="page-body"><div className="hero-row"><div><p className="eyebrow">COMPUTER VISION</p><h2>Known people</h2><p className="muted">Recognize trusted people when they arrive home.</p></div><button className="primary-small" onClick={() => document.getElementById("profile-upload")?.click()}><Plus size={16} /> Add profile</button></div><div className="profile-banner"><div className="profile-banner-icon"><Camera size={24} /></div><div><strong>Face recognition is active</strong><p>Haven checks entrance camera frames against your private profile library.</p></div><span className="active-badge"><i /> Active</span></div><input id="profile-upload" hidden type="file" accept="image/*" onChange={event => { setFileName(event.target.files?.[0]?.name || ""); if (event.target.files?.length) onNotify("Photo selected — profile ready to save"); }} /><div className="profile-grid">{people.map(person => <article className="profile-card" key={person.name}><div className={`profile-avatar ${person.color}`}>{person.initials}</div><div className="profile-info"><h3>{person.name}</h3><p>{person.role}</p><div className="confidence"><span>Match confidence</span><strong>{person.confidence}</strong></div><div className="confidence-bar"><i style={{ width: person.confidence }} /></div><small><Clock3 size={13} /> Last seen {person.lastSeen}</small></div><button className="more-button" onClick={() => onNotify(`${person.name}'s profile opened`)}>•••</button></article>)}<article className="add-profile-card" onClick={() => document.getElementById("profile-upload")?.click()}><span><Plus size={21} /></span><strong>Add someone you trust</strong><p>{fileName || "Upload a clear face photo to create a profile"}</p></article></div><p className="privacy-note"><ShieldCheck size={15} /> Photos stay on this device in this frontend demo. Connect a secure CV backend for production recognition.</p></div>;
+  const [people, setPeople] = useState<EnrolledPerson[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [showEnroll, setShowEnroll] = useState(false);
+  const [personName, setPersonName] = useState("");
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [error, setError] = useState("");
+
+  const loadPeople = async () => {
+    try {
+      setError("");
+      const response = await fetch(`${HAVEN_API_URL}/people`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(`Could not load profiles (${response.status}).`);
+      }
+      const data: EnrolledPerson[] = await response.json();
+      setPeople(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not connect to Haven backend.";
+      setError(`${message} Make sure the Python backend is running.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadPeople();
+  }, []);
+
+  const handleImageSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedImages(Array.from(event.target.files || []));
+    setError("");
+  };
+
+  const enrollPerson = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+
+    const cleanName = personName.trim();
+    if (!cleanName) {
+      setError("Enter the person's name.");
+      return;
+    }
+    if (selectedImages.length < 3 || selectedImages.length > 5) {
+      setError("Select between 3 and 5 photographs.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("name", cleanName);
+    selectedImages.forEach((image) => formData.append("images", image));
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${HAVEN_API_URL}/people/enroll`, {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          typeof result.detail === "string"
+            ? result.detail
+            : "Profile enrollment failed."
+        );
+      }
+
+      setPersonName("");
+      setSelectedImages([]);
+      setShowEnroll(false);
+      await loadPeople();
+      onNotify(`${cleanName} enrolled successfully.`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Enrollment failed. Check the backend."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const removePerson = async (person: EnrolledPerson) => {
+    if (!window.confirm(
+      `Delete ${person.name}'s profile and stored face embeddings?`
+    )) return;
+
+    try {
+      const response = await fetch(`${HAVEN_API_URL}/people/${person.id}`, {
+        method: "DELETE",
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail || "Could not delete profile.");
+      }
+
+      await loadPeople();
+      onNotify(`${person.name}'s profile deleted.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Profile deletion failed.");
+    }
+  };
+
+  const initials = (name: string) =>
+    name.trim().split(/\s+/).slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "").join("");
+
+  return (
+    <div className="page-body">
+      <div className="hero-row">
+        <div>
+          <p className="eyebrow">COMPUTER VISION</p>
+          <h2>Known people</h2>
+          <p className="muted">
+            Enroll trusted people for future live face recognition.
+          </p>
+        </div>
+        <button className="primary-small" onClick={() => {
+          setError("");
+          setShowEnroll(true);
+        }}>
+          <Plus size={16} /> Add profile
+        </button>
+      </div>
+
+      <div className="profile-banner">
+        <div className="profile-banner-icon"><Camera size={24} /></div>
+        <div>
+          <strong>Local face profile library</strong>
+          <p>
+            Profiles and face embeddings are stored in your local Haven SQLite
+            database.
+          </p>
+        </div>
+        <span className="active-badge"><i /> Backend connected</span>
+      </div>
+
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="empty-state">Loading enrolled profiles...</div>
+      ) : people.length === 0 ? (
+        <div className="empty-state">
+          No people enrolled yet. Select <strong>Add profile</strong> to create
+          the first profile.
+        </div>
+      ) : (
+        <div className="profile-grid">
+          {people.map((person, index) => (
+            <article className="profile-card" key={person.id}>
+              <div className={`profile-avatar ${
+                index % 3 === 0 ? "bg-[#f36b32]" :
+                index % 3 === 1 ? "bg-[#6b7df3]" : "bg-[#2ab47d]"
+              }`}>
+                {initials(person.name)}
+              </div>
+              <div className="profile-info">
+                <h3>{person.name}</h3>
+                <p>Enrolled profile</p>
+                <div className="confidence">
+                  <span>Face samples</span>
+                  <strong>{person.sample_count}</strong>
+                </div>
+                <div className="confidence-bar">
+                  <i style={{
+                    width: `${Math.min(person.sample_count / 5, 1) * 100}%`
+                  }} />
+                </div>
+                <small>
+                  <Clock3 size={13} /> Added{" "}
+                  {new Date(person.created_at).toLocaleDateString()}
+                </small>
+              </div>
+              <button
+                className="more-button"
+                aria-label={`Delete ${person.name}`}
+                title="Delete profile"
+                onClick={() => void removePerson(person)}
+              >
+                <X size={16} />
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
+
+      <p className="privacy-note">
+        <ShieldCheck size={15} />
+        Original uploaded photographs are not retained by this enrollment API;
+        face embeddings are stored locally.
+      </p>
+
+      {showEnroll && (
+        <div className="modal-backdrop" onMouseDown={() => {
+          if (!submitting) setShowEnroll(false);
+        }}>
+          <form
+            className="modal"
+            onSubmit={enrollPerson}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="modal-close"
+              disabled={submitting}
+              onClick={() => setShowEnroll(false)}
+            >
+              <X size={18} />
+            </button>
+            <div className="modal-icon"><Users size={20} /></div>
+            <p className="eyebrow">PROFILE ENROLLMENT</p>
+            <h2>Add a person</h2>
+            <p className="form-sub">
+              Enter a name and select 3–5 clear photographs of the same person.
+              Each photograph must contain exactly one face.
+            </p>
+
+            <label>
+              Person's name
+              <input
+                autoFocus
+                required
+                value={personName}
+                onChange={(event) => setPersonName(event.target.value)}
+                placeholder="e.g. Kiran Rao"
+                disabled={submitting}
+              />
+            </label>
+
+            <label>
+              Face photographs
+              <input
+                type="file"
+                accept="image/jpeg,image/png"
+                multiple
+                required
+                onChange={handleImageSelection}
+                disabled={submitting}
+              />
+            </label>
+
+            <p className="text-xs text-gray-500">
+              {selectedImages.length} of 3–5 photographs selected
+            </p>
+
+            {selectedImages.length > 0 && (
+              <ul className="my-3 max-h-24 overflow-y-auto text-xs text-gray-600">
+                {selectedImages.map((file, index) => (
+                  <li key={`${file.name}-${index}`} className="py-1">
+                    {file.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {error && <p className="my-3 text-xs text-red-600">{error}</p>}
+
+            <button className="primary-button" type="submit" disabled={submitting}>
+              {submitting ? "Registering..." : "Register person"}
+              {!submitting && <Check size={17} />}
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function Security({ onWarning, captured }: { onWarning: () => void; captured: string | null }) {
-  return <div className="page-body"><div className="hero-row"><div><p className="eyebrow">PROTECTION CENTER</p><h2>Home security</h2><p className="muted">Monitor entry points and respond to unusual activity.</p></div><span className="armed-badge"><i /> System armed</span></div><div className="security-layout"><section className="panel alert-panel"><div className="alert-panel-head"><div className="alert-icon"><ShieldAlert size={23} /></div><div><h3>Intruder warning</h3><p>Capture a photo if someone enters without permission.</p></div></div><div className="warning-preview">{captured ? <img src={captured} alt="Captured security evidence" /> : <div><Camera size={33} /><p>No evidence captured</p><small>Camera stays off until you start it</small></div>}</div><button className="primary-button" onClick={onWarning}><Camera size={17} /> {captured ? "Capture another photo" : "Open warning camera"}</button></section><section className="panel entry-panel"><div className="panel-heading"><div><h3>Protected entry points</h3><p>3 monitored areas</p></div><LockKeyhole size={18} className="muted-icon" /></div>{["Main entrance", "Back door", "Garage door"].map((entry, i) => <div className="entry-row" key={entry}><span className="entry-icon"><LockKeyhole size={16} /></span><div><strong>{entry}</strong><small>{i === 0 ? "Locked · last activity 09:42 AM" : "Secure · no recent activity"}</small></div><Check size={17} className="check-icon" /></div>)}<div className="security-tip"><Lightbulb size={16} /><span><strong>Tip</strong> Keep your entrance camera pointed at the doorway for the best recognition accuracy.</span></div></section></div></div>;
+function Security() {
+  return (
+    <div className="page-body">
+      <div className="hero-row">
+        <div>
+          <p className="eyebrow">PROTECTION CENTER</p>
+          <h2>Home security</h2>
+          <p className="muted">
+            Monitor your entrance with your ESP32-CAM.
+          </p>
+        </div>
+
+        <span className="armed-badge">
+          <i /> System armed
+        </span>
+      </div>
+
+      <div className="security-layout">
+        <section className="panel alert-panel">
+          <ESP32Camera />
+        </section>
+
+        <section className="panel entry-panel">
+          <div className="panel-heading">
+            <div>
+              <h3>Protected entry points</h3>
+              <p>Monitored areas</p>
+            </div>
+            <LockKeyhole size={18} />
+          </div>
+
+          {["Main entrance", "Back door", "Garage door"].map(
+            (entry) => (
+              <div className="entry-row" key={entry}>
+                <span className="entry-icon">
+                  <LockKeyhole size={16} />
+                </span>
+
+                <div>
+                  <strong>{entry}</strong>
+                  <small>Monitoring not yet connected</small>
+                </div>
+              </div>
+            )
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }
+
 
 function WarningModal({ videoRef, captured, onClose, onStart, onCapture }: { videoRef: React.RefObject<HTMLVideoElement | null>; captured: string | null; onClose: () => void; onStart: () => void; onCapture: () => void }) {
   return <div className="modal-backdrop"><div className="modal warning-modal"><button className="modal-close" onClick={onClose}><X size={18} /></button><div className="modal-icon danger"><ShieldAlert size={20} /></div><p className="eyebrow danger-text">SECURITY ACTION</p><h2>Capture an intruder</h2><p className="form-sub">Start your entrance camera, then take a snapshot to save evidence locally.</p><div className="camera-box">{captured ? <img src={captured} alt="Captured evidence" /> : <video ref={videoRef} autoPlay muted playsInline />}</div><div className="warning-actions"><button className="secondary-button" onClick={onStart}><Video size={16} /> Start camera</button><button className="primary-button" onClick={onCapture}><Camera size={16} /> Take picture</button></div><p className="camera-privacy"><ShieldCheck size={13} /> Camera access is requested only after you choose Start camera.</p></div></div>;
